@@ -1,5 +1,5 @@
 const Event = require('../models/Events');
-
+const mongoose = require('mongoose');
 exports.createEvent = async (req, res) => {
     const { name, description, date, time, location, maxAttendees } = req.body;
 
@@ -61,16 +61,36 @@ exports.updateEvent = async (req, res) => {
 
 exports.deleteEvent = async (req, res) => {
     try {
-        const event = await Event.findById(req.params.id);
-        if (!event) return res.status(404).json({ message: 'Event not found' });
+        console.log('Delete request received for Event ID:', req.params.id);
 
+        // Validate Event ID
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            console.error('Invalid Event ID:', req.params.id);
+            return res.status(400).json({ message: 'Invalid Event ID' });
+        }
+
+        // Fetch the event
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            console.error('Event not found for ID:', req.params.id);
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        console.log('Event found:', event);
+
+        // Check if the user is authorized to delete
         if (event.creator.toString() !== req.user.id) {
+            console.error('Unauthorized delete attempt by User ID:', req.user.id);
             return res.status(403).json({ message: 'Unauthorized' });
         }
 
-        await event.remove();
-        res.json({ message: 'Event deleted' });
+        // Delete the event
+        await Event.deleteOne({ _id: req.params.id }); // Replace `remove` with `deleteOne`
+        console.log('Event deleted successfully for ID:', req.params.id);
+
+        res.json({ message: 'Event deleted successfully' });
     } catch (error) {
-        res.status(500).json({ message: 'Server Error', error });
+        console.error('Error during deletion:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
